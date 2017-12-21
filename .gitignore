@@ -87,9 +87,8 @@ celerybeat-schedule
 venv/
 ENV/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# idea project settings
+.idea
 
 # Rope project settings
 .ropeproject
