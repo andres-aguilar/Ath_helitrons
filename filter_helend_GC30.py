@@ -24,6 +24,7 @@
 
 import argparse
 import warnings
+warnings.filterwarnings("ignore")
 import pandas as pd
 
 from Bio.SeqUtils import GC
