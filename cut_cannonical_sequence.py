@@ -30,7 +30,7 @@ from os import path
 from Bio import SeqIO
 
 __author__ = "Andres Aguilar"
-__date__ = "14/Dic/2017"
+__date__ = "20/Dic/2017"
 __version__ = "0.0.1"
 __mail__ = "andresyoshimar@gmail.com"
 
