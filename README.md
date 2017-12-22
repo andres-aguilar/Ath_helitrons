@@ -8,3 +8,7 @@ A thaliana helitrons
 - helend.pl : Search helend domain in sequences. hairpin + linker + CTRR motif
 
 - filter_helend_GC30.py : Select helends with GC 30% or more
+
+- helend_coordinates.pl : Perl scritp to calculate hairpin and CTRR coordinates
+
+- cut_cannonical_sequence.py : Cut sequence from TC to CTRR motives
