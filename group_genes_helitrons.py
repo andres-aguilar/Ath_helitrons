@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 #
-#  find_5pTC.py
+#  group_genes_helitrons.py
 #
 #  Copyright 2017 Andres Aguilar <andresyoshimar@gmail.com>
 #
