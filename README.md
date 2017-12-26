@@ -12,3 +12,7 @@ A thaliana helitrons
 - helend_coordinates.pl : Perl scritp to calculate hairpin and CTRR coordinates
 
 - cut_cannonical_sequence.py : Cut sequence from TC to CTRR motives
+
+- Helitron-groups_definition.pl : Perl script to group all alignments into captures groups
+
+- group_genes_helitrons.py : Group captures by gene and by helitron
