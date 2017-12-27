@@ -22,12 +22,14 @@
 #  MA 02110-1301, USA.
 #
 
+from __future__ import print_function
+
 import argparse
 import warnings
 import pandas as pd
 
 __author__ = "Andres Aguilar"
-__date__ = "20/Dic/2017"
+__date__ = "27/Dic/2017"
 __version__ = "0.0.1"
 __mail__ = "andresyoshimar@gmail.com"
 
@@ -49,9 +51,7 @@ def main(captures_file, genes_dist_file):
 
     captures.to_csv(captures_file, index=False, sep='\t')
 
-    # Captured genes
-    captures["Gene"].unique().size
-    # By Cannonic captures: 1,285
+    print("Captured genes", captures["Gene"].unique().size)
 
     # Cannonic helitrons with capture
     captures["Helitron_list"] = captures["Helitrons"].apply(split_helitron_list)
@@ -62,8 +62,7 @@ def main(captures_file, genes_dist_file):
         helitrons_list.extend(tmp_hels)
 
     helitrons_list = list(set(helitrons_list))
-    len(helitrons_list)  # Number of cannonic helitrons with capture
-    # Cannonic helitrons: 2,603
+    print("Number of cannonic helitrons with capture", len(helitrons_list))
 
     # Captures accumulation  by gene
     hels = list()
@@ -79,18 +78,14 @@ def main(captures_file, genes_dist_file):
     captured_genes_dist.sort_values("NoHelitrons", ascending=False, inplace=True)
     captured_genes_dist.to_csv(genes_dist_file, sep='\t', index=False)
 
-    # Total number of captures
-    captured_genes_dist["NoHelitrons"].sum()
-    # Out[50]: 7204
-    # Cannonic: 5,346
+    print("Total number of captures", captured_genes_dist["NoHelitrons"].sum())
 
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
 
-    args.add_argument("-i", "--helends_file", help="Helend coordinates file", required=True)
-    args.add_argument("-f", "--helitrons_file", help="Fasta with TC helitron sequences", required=True)
-    args.add_argument("-o", "--output_file", help="output file", required=True)
+    args.add_argument("-c", "--captures_file", help="Captures file", required=True)
+    args.add_argument("-g", "--genes_file", help="Genes group output file", required=True)
     p = args.parse_args()
 
-    main(p.helends_file, p.helitrons_file, p.output_file)
+    main(p.captures_file, p.genes_file)
