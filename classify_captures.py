@@ -28,9 +28,6 @@ import pandas as pd
 
 from os import path
 from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio.Alphabet import IUPAC
-from Bio.SeqRecord import SeqRecord
 
 __author__ = "Andres Aguilar"
 __date__ = "27/Dic/2017"
@@ -38,15 +35,43 @@ __version__ = "0.0.1"
 __mail__ = "andresyoshimar@gmail.com"
 
 warnings.filterwarnings("ignore")
-GFF_COLUMNS = ["Chr", "Source", "Feature", "Start", "End", "Score",
-                "Strand", "Frame", "Attribute"]
+GFF_COLUMNS = ["Chr", "Source", "Feature", "Start", "End", "Score", "Strand", "Frame", "Attribute"]
 
 
 def read_gff(gff_file, comment='#'):
     """ Function: read_gff """
     if path.isfile(gff_file):
-        return pd.read_table(gff_file, header=None, names=GFF_COLUMNS,
-                             comment=comment)
+        return pd.read_table(gff_file, header=None, names=GFF_COLUMNS, comment=comment)
+
+
+def read_fasta(path_to_file):
+    """ Function: read_fasta """
+    if path.exists(path_to_file) and path.isfile(path_to_file):
+        return SeqIO.parse(path_to_file, "fasta")
+    else:
+        return None
+
+
+def reads2df(reads, extra_info=False):
+    """ Function: reads2df
+    Convert a list of SeqRecords into a pandas DataFrame
+    """
+    names = list()
+    seqs = list()
+    desc = list()
+    for read in reads:
+        name = read.id
+        names.append(name)
+        seqs.append(str(read.seq))
+        desc.append(read.description)
+
+    if extra_info:
+        df = pd.DataFrame({"Name": names, "Seq": seqs})
+        df["Description"] = desc
+    else:
+        df = pd.DataFrame({"Name": names, "Seq": seqs})
+
+    return df
 
 
 def get_chromosome(x):
@@ -61,7 +86,8 @@ def get_chromosome(x):
     else:
         return "Chr5"
 
-def main(captures):
+
+def main(captures, gff_file, helitrons_fasta, classification_file):
     genes = captures["Gene"].unique().tolist()
 
     hels = list()
@@ -70,7 +96,6 @@ def main(captures):
     class_list = list()
     for gene in genes:
         tmp = captures.get(captures["Gene"] == gene)
-        tmp_hels = list()
         for x in tmp.itertuples():
             for j in x.Helitron_list:
                 gn_list.append(gene)
@@ -87,24 +112,12 @@ def main(captures):
     df["Chr_gene"] = df["Gene"].apply(get_chromosome)
     df["Chr_hel"] = df["Helitron"].apply(get_chromosome)
 
-    df.shape[0]
-    # Out[78]: 7204
-    # Cannonic: 5,346
-
-    df["Chr_hel"].value_counts()
-
-    df["Chr_gene"].value_counts()
-
     df["Same_chr"] = df.apply(lambda x: x.Chr_gene == x.Chr_hel, axis=1)
-    df["Same_chr"].value_counts()
-    # Out[148]:
-    # False    5094
-    # True     2110
 
     # Get genomic coordinates for helitrons and genes
-    annotation = read_gff(araport["annotation"])
+    annotation = read_gff(gff_file)
 
-    annotation = annotation[annotation["Feature"].str.contains(r"^gene$")]  # noqa
+    annotation = annotation[annotation["Feature"].str.contains(r"^gene$")]
 
     annotation["Id"] = annotation["Attribute"].apply(lambda x: x.split(";")[0])
     annotation["Id"] = annotation["Id"].apply(lambda x: x.split("=")[-1])
@@ -116,10 +129,8 @@ def main(captures):
         df["Gene_start"][x.Index] = g_tmp["Start"][g_tmp.first_valid_index()]
         df["Gene_end"][x.Index] = g_tmp["End"][g_tmp.first_valid_index()]
 
-        # h_tmp = annotation.get(annotation["Id"] == x.Helitron)
-        # df["Hel_start"][x.Index] = h_tmp["Start"][h_tmp.first_valid_index()]
-        # df["Hel_end"][x.Index] = h_tmp["End"][h_tmp.first_valid_index()]
-
+    helitrons = reads2df(read_fasta(helitrons_fasta))
+    helitrons["Len"] = helitrons["Seq"].apply(lambda x: len(x))
     helitrons["Start"] = helitrons["Name"].apply(lambda x: int(x.split("|")[2]))
     helitrons["End"] = helitrons["Name"].apply(lambda x: int(x.split("|")[3]))
 
@@ -130,8 +141,37 @@ def main(captures):
 
     df.index = list(range(len(df)))
 
-    df.to_csv(path.join(wdir, "araport", "captures_extended.tsv"), sep="\t",
-              index=False)
+    # ##############################################################################
+    # Clasificación de capturas genicas
+    #
+    # Clase I   - Gene capture
+    #   a) Gene inside a helitron.
+    #
+    #   b) Gene fragment inside a helitron.
+    #
+    # Clase II  - Helitron inside gene
+    #
+    # Clase III - Helitron - gene intersection
+    #
+    # #############################################################################
+
+    df["Class"] = ""
+    for x in df.itertuples():
+        starts = x.Gene_start >= x.Hel_start and x.Gene_start <= x.Hel_end
+        ends = x.Gene_end >= x.Hel_start and x.Gene_end <= x.Hel_end
+
+        if x.Gene_start >= x.Hel_start and x.Gene_end <= x.Hel_end:
+            df["Class"][x.Index] = "Ia"
+        elif x.Hel_start >= x.Gene_start and x.Hel_end <= x.Gene_end:
+            df["Class"][x.Index] = "II"
+        elif starts or ends:
+            df["Class"][x.Index] = "III"
+        else:
+            df["Class"][x.Index] = "Ib"
+
+    print(df["Class"].value_counts())
+
+    df.to_csv(classification_file, index=False, sep='\t')
 
 
 if __name__ == "__main__":
@@ -141,4 +181,4 @@ if __name__ == "__main__":
     args.add_argument("-o", "--output_file", help="output file", required=True)
     p = args.parse_args()
 
-    //main(p.input_file, p.output_file)
+    # main(p.input_file, p.output_file)
