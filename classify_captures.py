@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 #
-#  find_5pTC.py
+#  classify_captures.py
 #
-#  Copyright 2017 Andres Aguilar <andresyoshimar@gmail.com>
+#  Copyright 2018 Andres Aguilar <andresyoshimar@gmail.com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@ import warnings
 import pandas as pd
 
 from os import path
-from Bio import SeqIO
 
 __author__ = "Andres Aguilar"
 __date__ = "27/Dic/2017"
@@ -44,36 +43,6 @@ def read_gff(gff_file, comment='#'):
         return pd.read_table(gff_file, header=None, names=GFF_COLUMNS, comment=comment)
 
 
-def read_fasta(path_to_file):
-    """ Function: read_fasta """
-    if path.exists(path_to_file) and path.isfile(path_to_file):
-        return SeqIO.parse(path_to_file, "fasta")
-    else:
-        return None
-
-
-def reads2df(reads, extra_info=False):
-    """ Function: reads2df
-    Convert a list of SeqRecords into a pandas DataFrame
-    """
-    names = list()
-    seqs = list()
-    desc = list()
-    for read in reads:
-        name = read.id
-        names.append(name)
-        seqs.append(str(read.seq))
-        desc.append(read.description)
-
-    if extra_info:
-        df = pd.DataFrame({"Name": names, "Seq": seqs})
-        df["Description"] = desc
-    else:
-        df = pd.DataFrame({"Name": names, "Seq": seqs})
-
-    return df
-
-
 def get_chromosome(x):
     if "AT1" in x:
         return "Chr1"
@@ -87,8 +56,11 @@ def get_chromosome(x):
         return "Chr5"
 
 
-def main(captures, gff_file, helitrons_fasta, classification_file):
+def main(captures_file, gff_file, helitrons_file, classification_file):
+    captures = pd.read_table(captures_file)
     genes = captures["Gene"].unique().tolist()
+    captures["Helitron_list"] = captures["Helitrons"].apply(lambda x: x.split("-"))
+    captures["Helitron_list"] = captures["Helitron_list"].apply(lambda x: [a.split(".")[0] for a in x])
 
     hels = list()
     gn_list = list()
@@ -129,36 +101,37 @@ def main(captures, gff_file, helitrons_fasta, classification_file):
         df["Gene_start"][x.Index] = g_tmp["Start"][g_tmp.first_valid_index()]
         df["Gene_end"][x.Index] = g_tmp["End"][g_tmp.first_valid_index()]
 
-    helitrons = reads2df(read_fasta(helitrons_fasta))
-    helitrons["Len"] = helitrons["Seq"].apply(lambda x: len(x))
-    helitrons["Start"] = helitrons["Name"].apply(lambda x: int(x.split("|")[2]))
-    helitrons["End"] = helitrons["Name"].apply(lambda x: int(x.split("|")[3]))
+    helitrons = pd.read_table(helitrons_file)
+    helitrons["Name"] = helitrons["Long_name"].apply(lambda x: x.split("|")[0])
+    helitrons["Start"] = helitrons["Long_name"].apply(lambda x: int(x.split("|")[2]))
+    helitrons["End"] = helitrons["Long_name"].apply(lambda x: int(x.split("|")[3]))
 
     df.index = df["Helitron"].tolist()
+    helitrons.index = helitrons["Name"].tolist()
 
-    df["Hel_start"] = helitrons["Start"]
-    df["Hel_end"] = helitrons["End"]
+    df["Hel_start"] = helitrons["Start"].astype(int)
+    df["Hel_end"] = helitrons["End"].astype(int)
 
     df.index = list(range(len(df)))
 
     # ##############################################################################
-    # Clasificación de capturas genicas
+    # Gene capture classification
     #
-    # Clase I   - Gene capture
+    # Class I   - Gene capture
     #   a) Gene inside a helitron.
     #
     #   b) Gene fragment inside a helitron.
     #
-    # Clase II  - Helitron inside gene
+    # Class II  - Helitron inside gene
     #
-    # Clase III - Helitron - gene intersection
+    # Class III - Helitron - gene intersection
     #
     # #############################################################################
 
     df["Class"] = ""
     for x in df.itertuples():
-        starts = x.Gene_start >= x.Hel_start and x.Gene_start <= x.Hel_end
-        ends = x.Gene_end >= x.Hel_start and x.Gene_end <= x.Hel_end
+        starts = x.Gene_start >= x.Hel_start <= x.Hel_end
+        ends = x.Gene_end >= x.Hel_start <= x.Hel_end
 
         if x.Gene_start >= x.Hel_start and x.Gene_end <= x.Hel_end:
             df["Class"][x.Index] = "Ia"
@@ -177,8 +150,10 @@ def main(captures, gff_file, helitrons_fasta, classification_file):
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
 
-    args.add_argument("-i", "--input_file", help="Helitron sequences file", required=True)
-    args.add_argument("-o", "--output_file", help="output file", required=True)
+    args.add_argument("-i", "--captures_file", help="Captures file", required=True)
+    args.add_argument("-g", "--gff_file", help="Gff file", required=True)
+    args.add_argument("-f", "--helitrons_file", help="file with corrected headers", required=True)
+    args.add_argument("-c", "--classification_file", help="output file", required=True)
     p = args.parse_args()
 
-    # main(p.input_file, p.output_file)
+    main(p.captures_file, p.gff_file, p.helitrons_file, p.classification_file)
