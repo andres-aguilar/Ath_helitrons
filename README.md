@@ -16,3 +16,5 @@ A thaliana helitrons
 - Helitron-groups_definition.pl : Perl script to group all alignments into captures groups
 
 - group_genes_helitrons.py : Group captures by gene and by helitron
+
+- classify_captures.py : Generate the classification table
